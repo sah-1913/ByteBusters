@@ -4,6 +4,7 @@ import csv
 import pyttsx3
 from datetime import datetime
 import pandas as pd
+import os
 
 # Function to recognize speech
 def recognize_present(timeout=5):
@@ -28,11 +29,6 @@ def recognize_present(timeout=5):
         st.sidebar.error(f"Could not request results from Google Speech Recognition service: {e}")
         return None
 
-# Function to update attendance
-def update_attendance(roll_number, status, df):
-    df.loc[len(df)] = [roll_number, status]
-    df.to_csv('Roll_call.csv', index=False)
-
 # Function to speak text
 def speak(text):
     engine = pyttsx3.init()
@@ -44,15 +40,41 @@ def main():
     st.set_page_config(page_title="Voice Recognition Roll Call", page_icon="🎤")
     st.title("Voice Recognition Roll Call")
 
+    st.sidebar.header("Settings")
+    num_lecture = st.sidebar.number_input("Lecture number of the subject for the day", 
+                                           min_value=1, max_value=10, value=1)
+
     # Sidebar
     st.sidebar.header("Settings")
     if st.sidebar.button("Start Roll Call"):
+
+        if os.path.exists("attendance.csv"):
+            attendance = pd.read_csv("attendance.csv")
+        else:
+            attendance = pd.DataFrame(columns=["Lec_num", "Date", "Time", "1", "2", "3", "4"])
+
+        if num_lecture in attendance['Lec_num'].values:
+            st.sidebar.error("Roll Call already done for this lecture.")
+            return
+
         st.sidebar.success("Roll Call Started...")
 
         enrolled_students = {"1": "Dhruve", "2": "Prasad", "3": "Sakshi", "4": "Diya"}
-        Roll_call_df = pd.read_csv('Roll_call.csv')
-        face_recog = pd.read_csv('attendance_records.csv')
-        attendance = pd.read_csv('attendance.csv')
+
+        face_recog = pd.read_csv('face_recog_records.csv')
+
+        current_date = datetime.now().strftime("%d-%m-%Y")
+        current_time = datetime.now().strftime("%H:%M:%S")
+
+        attendance = attendance.append({'Lec_num': num_lecture,
+                                        'Date': current_date,
+                                        'Time': current_time,
+                                        '1': 'A', 
+                                        '2': 'A', 
+                                        '3': 'A', 
+                                        '4': 'A', 
+                                        }, ignore_index=True)
+
         roll_call_output = []  # List to store roll call results
         
         for roll_number in enrolled_students.keys():
@@ -62,42 +84,20 @@ def main():
             st.write(f"Calling {student_name}...")
             st.sidebar.write("Please say 'present' when called.")
             st.sidebar.write("Listening...")
-            status = recognize_present(timeout=5)  # Increase timeout to 10 seconds
+            status = recognize_present(timeout=5)
             if status:
-                update_attendance(roll_number, status, Roll_call_df)
+                # update_attendance(roll_number, status, roll_call_df)
                 roll_call_output.append(f"{student_name}: present")
                 st.success("Attendance marked.")
-
-                current_date = datetime.now().strftime("%d-%m-%Y")
+                
                 for index, row in face_recog.iterrows():
-                    if int(roll_number) == row[0]:
-                        if current_date in attendance["Date"].values:
-                            attendance.loc[attendance['Date'] == current_date, roll_number] = 'Present'
-                        else:
-                            new_row = {'Date': current_date, roll_number: 'Present'}
-                            attendance = attendance.append(new_row, ignore_index=True)
+                    if int(roll_number) == row[0] and current_date == row[2]:
+                        attendance.loc[(attendance['Date'] == current_date) 
+                                    & (attendance['Lec_num'] == num_lecture), roll_number] = "P"
                         attendance.to_csv('attendance.csv', index=False)
-                        break
-                    # print(row[0], roll_number)
-                    # if current_date in attendance["Date"].values:
-                    #     attendance.loc[attendance['Date'] == current_date, roll_number] = 'Present'
-                    #     attendance.to_csv('attendance.csv', index=False)
-                    #     break
-                    # else:
-                    #     new_row = {'Date': current_date, roll_number: 'Present'}
-                    #     attendance = attendance.append(new_row, ignore_index=True)
-                    #     attendance.to_csv('attendance.csv', index=False)
-                    #     break
             else:
-                current_date = datetime.now().strftime("%d-%m-%Y")
                 roll_call_output.append(f"{student_name}: not present")
                 st.error("Attendance not marked.")
-                if current_date in attendance["Date"].values:
-                    attendance.loc[attendance['Date'] == current_date, roll_number] = 'Absent'
-                else:
-                    new_row = {'Date': current_date, roll_number: 'Absent'}
-                    attendance = attendance.append(new_row, ignore_index=True)
-                attendance.to_csv('attendance.csv', index=False)
         
         # Display the entire roll call process
         st.sidebar.header("Roll Call Summary")
