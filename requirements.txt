@@ -1,4 +1,5 @@
-
+dlib>=19.18.0
+PyAudio>=0.2.11
 dlib==19.24.2
 
 entrypoints==0.4
