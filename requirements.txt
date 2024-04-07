@@ -1,8 +1,5 @@
-# System-level dependency: Please install portaudio manually
-portaudio
 
-dlib>=19.18.0
-PyAudio>=0.2.11
+
 dlib==19.24.2
 
 entrypoints==0.4
@@ -46,7 +43,7 @@ Pillow==9.4.0
 PyAudio==0.2.14
 
 PyYAML==6.0
-
+pyttsx3==2.90
 safetensors==0.3.2
 scikit-image==0.21.0
 scikit-learn==1.2.2
